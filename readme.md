@@ -1,14 +1,16 @@
-# Return of Samus Disassembly
+# Colorful Return of Samus Disassembly
 
-A disassembly of one of my favorite Game Boy games. A first-pass over every function of code has been completed, but there are still plenty of improvements to be made to make the code more intelligible and usable. Feel free to contribute.
+This repository aims to create an open source colorization patch for Metroid 2. It is supposed to be more flexible than the current M2 Colorization patch and work with ROM-Hacks
+
+A lot of files are unchanged from the original [M2RoS Repository](https://github.com/alex-west/M2RoS).
 
 ## Build Instructions
 
-1. Install [rgbds](https://github.com/rednex/rgbds#1-installing-rgbds)
-2. Either run `make all` or `build.bat`, depending on your preference.
+0. ***Optional,*** Install [rgbds](https://github.com/rednex/rgbds#1-installing-rgbds)
+1. Run `build.bat`. If [rgbds](https://github.com/rednex/rgbds#1-installing-rgbds) is not found in your path, it will be installed into the repository root.
 3. The assembled game and a [BGB](http://bgb.bircd.org/) compatible `.sym` file will appear in the `out` folder.
 
-The resultant file should have this hash: `md5: 9639948ad274fa15281f549e5f9c4d87`
+The resultant file should have this hash: *TODO*
 
 ## How to Contribute
 
@@ -46,7 +48,7 @@ Subject to change.
 
 ## Resources
 
-- [mgbdis](https://github.com/mattcurrie/mgbdis) - The disassember used to create this project.
+- [mgbdis](https://github.com/mattcurrie/mgbdis) - The disassembler used to create this project.
 - [PJ's Bank Logs](http://patrickjohnston.org/ASM/ROM%20data/RoS/) - A rather extensive, but unbuildable, disassembly of the game.
 - [MetConst Wiki](https://wiki.metroidconstruction.com/doku.php?id=return_of_samus) - Some of the information here is outdated.
 - [M2 Music Tools](https://github.com/kkzero241/M2MusicTools) - A song extractor written by kkzero.
@@ -56,4 +58,4 @@ Subject to change.
 
 - [M2Edit](https://m2sw.zophar.net/m2edit/) - Abandoned editor from 2004. Stable, but closed source and lacks enemy and door editing capabilities.
 - [ROSE](https://github.com/liamnajor/ROSE) - WIP editor. Web based.
-- [YAM2E](https://github.com/ConConner/YAM2E) - Very early WIP editor.
+- [LAMP](https://github.com/LAMP-Platform/LAMP) - Feature-rich editor.

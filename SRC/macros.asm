@@ -223,3 +223,10 @@ endm
 macro SongRepeat
     db $F5
 endm
+
+macro WAITBLANK
+    wait\@:
+    ldh a, [rSTAT]
+    bit 1, a
+    jr nz,wait\@
+endm

@@ -52,7 +52,8 @@ Boot:: ; 00:0100
     jp jumpToBoot
 
 HeaderLogo:: NINTENDO_LOGO
-HeaderTitle:: db "METROID2", $00, $00, $00, $00, $00, $00, $00, $00
+HeaderTitle:: db "METROID2", $00, $00, $00, $00, $00, $00, $00
+HeaderGBCFlag:: db $80
 HeaderNewLicenseeCode:: db $00, $00
 HeaderSGBFlag::         db $00
 HeaderCartridgeType::   db $03
@@ -898,6 +899,10 @@ ret
 ;}
 
 prepMapUpdate: ;{ 00:0698
+
+    ; Load GBC Palettes
+    call initializePalettes
+
     ; Switch to current level bank
     switchBankVar [currentLevelBank]
     ; Reset map update buffer pointer
@@ -10657,5 +10662,56 @@ unusedDeathAnimation_copy: ;{ 00:3F07
     pop bc
     pop af
 reti ;}
+
+
+
+
+
+
+
+
+; COLOR CODE HERE
+;-----------------
+; This is where my attempt at colorization starts!
+
+initializePalettes:
+    push hl
+    ld hl, InitBGPal
+    call SET_BGPAL
+    ld hl, InitOBJPal
+    call SET_OBJPAL
+    pop hl
+    ret
+
+InitBGPal:
+    db $FF,$7F,$9F,$0E,$CD,$00,$00,$00,$FF,$7F,$76,$53,$4F,$37,$00,$00,$FF,$7F,$53,$73,$2D,$6A,$00,$00
+InitOBJPal:
+    db $FF,$7F,$9F,$76,$DE,$71,$00,$00,$77,$77,$FF,$7F,$2D,$6A,$00,$00,$77,$77,$FF,$7F,$7B,$0E,$00,$00
+
+SET_BGPAL:
+    ld a, $80
+    ldh [rBCPS], a
+    ld b, $40
+    LoopBGPAL:
+        WAITBLANK
+
+        ldi a, [hl]
+        ldh [rBCPD], a
+        dec b
+        jr nz, LoopBGPAL
+    ret
+
+SET_OBJPAL:
+    ld a, $80
+    ldh [rOCPS], a
+    ld b, $40
+    LoopOBJPAL:
+        WAITBLANK
+
+        ldi a, [hl]
+        ldh [rOCPD], a
+        dec b
+        jr nz, LoopOBJPAL
+    ret
 
 bank0_freespace: ; Freespace - 00:3F60 (filled with $00)
