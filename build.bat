@@ -50,21 +50,24 @@ goto done
 echo.
 echo. Script Error.
 echo.
-goto done
+goto errorDone
 :errorASM
 echo.
 echo. Assembler Error.
 echo.
-goto done
+goto errorDone
 :errorLINK
 echo.
 echo. Linker Error.
 echo.
-goto done
+goto errorDone
 :errorFIX
 echo.
 echo. RGBFIX Error.
 echo.
 
 :done
-pause
+exit 0
+
+:errorDone
+exit 1

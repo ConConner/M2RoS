@@ -1,3 +1,4 @@
+.vscode/*
 out/*
 scripts/*.asm
 *.gb

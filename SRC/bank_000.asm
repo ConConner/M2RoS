@@ -131,6 +131,17 @@ VBlankHandler: ;{ 00:0154
         ld a, [currentLevelBank]
         ld [rMBC_BANK_REG], a
         call VBlank_updateMap
+
+        ;MARK: Updating BG Palette
+        ; Also call palette code
+        ld a, BANK(VBlank_updatePalettes)
+        ld [rMBC_BANK_REG], a
+        ld a, $1
+        ld [rVBK], a
+        call VBlank_updatePalettes
+        ld a, $0
+        ld [rVBK], a
+        
         jr .endIf_B
     .else_B:
         ld a, BANK(VBlank_updateStatusBar)
@@ -306,6 +317,13 @@ bootRoutine: ;{ 00:01FB
     ldh [rWY], a
     ldh [rTMA], a
 
+    ; MARK: Initializing Palette
+    ; Load GBC Palettes
+    ld a, 0
+    call loadBGPalette
+    ld a, 1
+    call loadOBJPalette
+
     ; Enable SRAM
     ld a, $0a
     ld [$0000], a
@@ -423,7 +441,6 @@ waitForNextFrame: ;{ 00:031C
                         ld a, $99
                         ld [gameTimeHours], a
     .endIf:
-    
     xor a
     ldh [hVBlankDoneFlag], a
     ld a, $c0
@@ -899,10 +916,6 @@ ret
 ;}
 
 prepMapUpdate: ;{ 00:0698
-
-    ; Load GBC Palettes
-    call initializePalettes
-
     ; Switch to current level bank
     switchBankVar [currentLevelBank]
     ; Reset map update buffer pointer
@@ -1319,9 +1332,6 @@ VBlank_updateMap: ;{ 00:08CF
         ld [hl], a
     jr .loop
     .break:
-
-    xor a
-    ld [mapUpdateFlag], a
 ret
 ;}
 
@@ -1722,9 +1732,6 @@ handleCamera: ;{ 00:08FE
     ld [samusPrevYPixel], a
 ret
 ;}
-
-.unusedTable ; 00:0B39 - Unreferenced data of unknown purpose
-    db $00, $01, $01, $00, $00, $00, $01, $02, $02, $01, $01
 
 ; Already in a door transition?
 handleCamera_door: ;{ 00:0B44
@@ -5774,84 +5781,6 @@ getTilemapCoordinates: ;{ 00:22E1
     ld [tileX], a
 ret ;}
 
-; Unused function - no idea what this could have been used for
-;  Seems to assume HL, DE, and C227 were set before entry
-unknownProc_230C: ;{ 00:230C
-    ; Exit if zero
-    ld a, [unknown_C227]
-    and a
-        ret z
-    
-    ; Set loop counter
-    ld c, $03
-    ; Clear value
-    xor a
-    ld [unknown_C227], a
-    .loop:
-        ; Branch if upper nybble is nonzero
-        ld a, [de]
-        ld b, a
-        swap a
-        and $0f
-            jr nz, .branch_A
-    
-        ; Load 0 to HL if unknown var is non-zero
-        ld a, [unknown_C227]
-        and a
-        ld a, $00
-        jr nz, .endIf_A
-            ; Else load $FF to HL
-            ld a, $ff
-        .endIf_A:
-    .reentry_A:
-        ld [hl+], a
-        
-        ; Branch is lower nybble is nonzero
-        ld a, b
-        and $0f
-            jr nz, .branch_B
-    
-        ; Load 0 to HL if var is non-zero
-        ld a, [unknown_C227]
-        and a
-        ld a, $00
-        jr nz, .endIf_B
-            ; Write FF to HL if this is the last loop iteration
-            ld a, $01
-            cp c
-            ld a, $00
-            jr z, .endIf_B
-                ld a, $ff
-        .endIf_B:
-    .reentry_B:
-        ld [hl+], a
-        ; Get address of next source byte
-        dec e
-        ; Decrement loop counter
-        dec c
-    jr nz, .loop
-    ; Clear variable
-    xor a
-    ld [unknown_C227], a
-ret
-
-.branch_A:
-    push af
-    ; Set variable to 1
-    ld a, $01
-    ld [unknown_C227], a
-    pop af
-jr .reentry_A
-
-.branch_B:
-    push af
-    ; Set variable to 1
-    ld a, $01
-    ld [unknown_C227], a
-    pop af
-jr .reentry_B
-;}
-
 ;------------------------------------------------------------------------------
 oamDMA_routine: ;{ 00:235C Copied to $FFA0 in HRAM
     ld a, HIGH(wram_oamBuffer)
@@ -5936,7 +5865,7 @@ executeDoorScript: ;{ 00:239C
     
     ; Read tokens starting from the beginning of the script
     ld hl, doorScriptBuffer
-
+;MARK: Door Code
 .readOneToken: ;{ Main loop for door script interpreter
     ; Read token (note this does not use [HL+])
     ld a, [hl]
@@ -6324,12 +6253,10 @@ executeDoorScript: ;{ 00:239C
                 jp .nextToken
             ;}
     ;}
-    
-    .unreferencedTable: db $04, $05, $06, $07, $08, $09, $10, $12 ; 00:260C
 
     .doorToken_item:
     cp $d0 ; ITEM {
-    jp nz, .nextToken
+    jp nz, .doorToken_palette
         ; Load item graphics
         ; Set source bank
         ld a, BANK(gfx_items)
@@ -6459,6 +6386,27 @@ executeDoorScript: ;{ 00:239C
             ; Transfer graphics
             call beginGraphicsTransfer
         pop hl ;}
+    jr .nextToken ;}
+
+    ; Load Palette Instruction: E0 XX->BGPal YY->OBJPal
+    .doorToken_palette:
+    ld a, [hl]
+    cp $E0 ; PALETTE {
+    jr nz, .nextToken
+        ; Read argument 1, BG Palette Index
+        inc hl
+        ld a, [hl+]
+        cp $FF ; $FF indicates that no new palette should be loaded
+        jr z, .readObjPal ; if arg1 != $FF {
+            call loadBGPalette ; a has the index
+        ; }
+        ; Read argument 2, OBJ Palette Index
+        .readObjPal
+        ld a, [hl+]
+        cp $FF
+        jr z, .nextToken ; if arg2 != $FF {
+            call loadOBJPalette; a has the index
+        ;}
     jr .nextToken ;}
 
 .nextToken:
@@ -10587,131 +10535,78 @@ loadScreenSpritePriorityBit: ;{ 00:3ED5
 ret
 ;}
 
-; Unused (duplicate of the routine at 00:3062)
-unusedDeathAnimation_copy: ;{ 00:3F07
-    ; Animate every other frame
-    ldh a, [frameCounter]
-    and $01
-    jr nz, .endIf_A
-        ; Get pointer for starting offset
-        ld a, [pDeathAltAnimBaseLow]
-        ld l, a
-        ld a, [pDeathAltAnimBaseHigh]
-        ld h, a
-        
-        ; Set increment value for loop
-        ld de, $0010
-        .eraseLoop:
-            ; Clear byte
-            xor a
-            ld [hl], a
-            ; Iterate to next byte
-            add hl, de
-            ; Exit loop once $xx0x is reached
-            ld a, l
-            and $f0
-        jr nz, .eraseLoop
-        ; Iterate to next row of pixels to clear        
-        ; HL-$00FF (to get to the next byte of the starting tile)
-        ld a, l
-        sub $ff
-        ld l, a
-        ld a, h
-        sbc $00
-        ld h, a
-        ; If HL points to the second tile in a row
-        ld a, l
-        cp $10
-        jr nz, .endIf_B
-            ; Then add $F0 to HL so it points to the first tile of the next row
-            add $f0
-            ld l, a
-            ld a, h
-            adc $00
-            ld h, a
-        .endIf_B:
-        ; Save the pointer
-        ld a, l
-        ld [pDeathAltAnimBaseLow], a
-        ld a, h
-        ld [pDeathAltAnimBaseHigh], a
-        ; Stop animating once 5 rows have been cleared
-        cp $85
-        jr nz, .endIf_A
-            ; Clear timer
-            xor a
-            ld [deathAnimTimer], a
-            ; Note: This does not set deathFlag
-            ;  or gameMode like it should.
-    .endIf_A:
 
-    ; Set scroll values
-    ld a, [scrollY]
-    ldh [rSCY], a
-    ld a, [scrollX]
-    ldh [rSCX], a
-    ; DMA sprites
-    call OAM_DMA
-    ; Return from interrupt
-    ld a, [bankRegMirror]
-    ld [rMBC_BANK_REG], a
-    ld a, $01
-    ldh [hVBlankDoneFlag], a
-    pop hl
-    pop de
-    pop bc
-    pop af
-reti ;}
-
-
-
-
-
-
-
-
-; COLOR CODE HERE
+; MARK: COLOR CODE HERE
 ;-----------------
 ; This is where my attempt at colorization starts!
 
-initializePalettes:
+
+; Loads a Palette as the current Background Palette.
+; a: Palette index
+loadBGPalette:: ;{
     push hl
-    ld hl, InitBGPal
-    call SET_BGPAL
-    ld hl, InitOBJPal
-    call SET_OBJPAL
-    pop hl
-    ret
 
-InitBGPal:
-    db $FF,$7F,$9F,$0E,$CD,$00,$00,$00,$FF,$7F,$76,$53,$4F,$37,$00,$00,$FF,$7F,$53,$73,$2D,$6A,$00,$00
-InitOBJPal:
-    db $FF,$7F,$9F,$76,$DE,$71,$00,$00,$77,$77,$FF,$7F,$2D,$6A,$00,$00,$77,$77,$FF,$7F,$7B,$0E,$00,$00
+    ;Calculate offset in pointertable from index
+    call getPaletteOffsetFromTable
+    ;At this point HL has the pointer to the palette
 
-SET_BGPAL:
     ld a, $80
     ldh [rBCPS], a
     ld b, $40
-    LoopBGPAL:
+    LoopBGPAL: ;{ While b > 0
         WAITBLANK
 
-        ldi a, [hl]
+        ld a, [hl+]
         ldh [rBCPD], a
         dec b
         jr nz, LoopBGPAL
-    ret
+    ;}
+    pop hl
+ret
+;}
 
-SET_OBJPAL:
+; Loads a Palette as the current Sprite Palette.
+; a: Palette index
+loadOBJPalette:: ;{
+    push hl
+
+    ;Calculate offset in pointertable from index
+    call getPaletteOffsetFromTable
+    ;At this point HL has the pointer to the palette
+
     ld a, $80
     ldh [rOCPS], a
     ld b, $40
-    LoopOBJPAL:
+    LoopOBJPAL: ;{ While b > 0
         WAITBLANK
 
         ldi a, [hl]
         ldh [rOCPD], a
         dec b
         jr nz, LoopOBJPAL
-    ret
+    ;}
+    pop hl
+ret
+;}
+
+;Calculates the offset to a palette from its index in the pointer table
+;a: palette index
+;hl: pointer to palette
+getPaletteOffsetFromTable:
+    ld e, a
+    ld d, $00
+    sla e
+    switchBank palettePointerTable
+    ld hl, palettePointerTable
+    add hl, de
+
+    ;Load pointer from pointer table
+    ld a, [hl+]
+    ld b, a
+    ld a, [hl+]
+    ld h, a
+    ld l, b
+ret
+
 
 bank0_freespace: ; Freespace - 00:3F60 (filled with $00)

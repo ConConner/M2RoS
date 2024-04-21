@@ -4292,4 +4292,65 @@ saveFileToSRAM: ;{ 01:7ADF
     ldh [gameMode], a
 ret ;}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+VBlank_updatePalettes:
+    ld de, mapUpdateBuffer - 1 ;$ddff
+
+    .loop:
+        ; Load address
+        inc de
+        ld a, [de]
+        ld l, a
+        inc de
+        ld a, [de]
+        ld h, a
+        and a ; Exit if address is $00xx
+            jr z, .break
+        ; Load and write top-left tile
+        inc de
+        ld a, $6
+        ld [hl+], a
+        ; Load and write top-right tile
+        ld a, h
+        and $9b
+        ld h, a
+        inc de
+        ld a, $6
+        ld [hl], a
+        ; Load and write bottom-left tile
+        ld bc, $001f
+        add hl, bc
+        ld a, h
+        and $9b
+        ld h, a
+        inc de
+        ld a, $6
+        ld [hl+], a
+        ; Load and write bottom-right tile
+        ld a, h
+        and $9b
+        ld h, a
+        inc de
+        ld a, $6
+        ld [hl], a
+    jr .loop
+    .break:
+
+    xor a
+    ld [mapUpdateFlag], a
+ret
+
 bank1_freespace: ; 1:7B87 - Freespace (filled with $00)
