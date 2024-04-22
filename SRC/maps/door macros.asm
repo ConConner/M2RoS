@@ -84,6 +84,12 @@ MACRO ITEM
 	db $D0 | ((\1) & $0F)
 ENDM
 
+MACRO PALETTE
+	db $E0
+	db \1
+	db \2
+ENDM
+
 MACRO END_DOOR
 	db $FF
 ENDM

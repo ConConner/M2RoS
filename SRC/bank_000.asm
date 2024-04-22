@@ -10602,10 +10602,8 @@ getPaletteOffsetFromTable:
 
     ;Load pointer from pointer table
     ld a, [hl+]
-    ld b, a
-    ld a, [hl+]
-    ld h, a
-    ld l, b
+    ld h, [hl]
+    ld l, a
 ret
 
 

@@ -35,3 +35,4 @@ INCLUDE "maps/bank_00e.asm"
 INCLUDE "maps/bank_00f.asm"
 ; Palette Banks
 INCLUDE "bank_010.asm"
+INCLUDE "bank_011.asm"
