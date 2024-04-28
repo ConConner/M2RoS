@@ -1430,7 +1430,7 @@ collisionArray:: ds $100 ;$DC00..FF: Tile properties. Indexed by tilemap value. 
 ;    40h : 6 Bomb block
 ;    80h : 7 Save pillar
 ;}
-paletteTableArray:: ds $100 ; Palette table defining which sub-metatile uses which palette
+paletteTableArray:: ds $1 ; Palette table defining which sub-metatile uses which palette
 .end::
 
 projectileArray:: ;$DD00..2F: Projectile data. 10h byte slots

@@ -318,11 +318,7 @@ bootRoutine: ;{ 00:01FB
     ldh [rTMA], a
 
     ; MARK: Initializing Palette
-    ; Load GBC Palettes
-    ld a, 0
-    call loadBGPalette
-    ld a, 1
-    call loadOBJPalette
+    include "colorhack/boot_initializePalette.asm"
 
     ; Enable SRAM
     ld a, $0a
@@ -6256,7 +6252,7 @@ executeDoorScript: ;{ 00:239C
 
     .doorToken_item:
     cp $d0 ; ITEM {
-    jp nz, .doorToken_palette
+    jp nz, .doorToken_BGPalette
         ; Load item graphics
         ; Set source bank
         ld a, BANK(gfx_items)
@@ -6388,26 +6384,38 @@ executeDoorScript: ;{ 00:239C
         pop hl ;}
     jr .nextToken ;}
 
-    ; Load Palette Instruction: E0 XX->BGPal YY->OBJPal
-    .doorToken_palette:
+    ; Load BG Palette Instruction: E1 BB->Bank OOOO->Offset
+    .doorToken_BGPalette:
     ld a, [hl]
-    cp $E0 ; PALETTE {
-    jr nz, .nextToken
-        ; Read argument 1, BG Palette Index
+    cp $E0 ; BGPALETTE {
+    jr nz, .doorToken_OBJPalette
+        ; Read Bank
         inc hl
         ld a, [hl+]
-        cp $FF ; $FF indicates that no new palette should be loaded
-        jr z, .readObjPal ; if arg1 != $FF {
-            call loadBGPalette ; a has the index
-        ; }
-        ; Read argument 2, OBJ Palette Index
-        .readObjPal
+        switchBankVar a ;Switch to bank
+        ; Read Offset
         ld a, [hl+]
-        cp $FF
-        jr z, .nextToken ; if arg2 != $FF {
-            call loadOBJPalette; a has the index
-        ;}
-    jr .nextToken ;}
+        ld e, a
+        ld a, [hl+]
+        ld d, a
+        call loadBGPalette ; af has the offset
+    jr .doorToken_OBJPalette ;}
+
+    .doorToken_OBJPalette:
+    cp $E1 ; OBJPALETTE {
+    jr nz, .nextToken
+        ; Read Bank
+        inc hl
+        ld a, [hl+]
+        switchBankVar a ;Switch to bank
+        ; Read Offset
+        ld a, [hl+]
+        ld e, a
+        ld a, [hl+]
+        ld d, a
+        call loadOBJPalette ; af has the offset
+    jr .nextToken
+
 
 .nextToken:
     ; Wait a frame before reading another token
@@ -10538,73 +10546,7 @@ ret
 
 ; MARK: COLOR CODE HERE
 ;-----------------
-; This is where my attempt at colorization starts!
 
-
-; Loads a Palette as the current Background Palette.
-; a: Palette index
-loadBGPalette:: ;{
-    push hl
-
-    ;Calculate offset in pointertable from index
-    call getPaletteOffsetFromTable
-    ;At this point HL has the pointer to the palette
-
-    ld a, $80
-    ldh [rBCPS], a
-    ld b, $40
-    LoopBGPAL: ;{ While b > 0
-        WAITBLANK
-
-        ld a, [hl+]
-        ldh [rBCPD], a
-        dec b
-        jr nz, LoopBGPAL
-    ;}
-    pop hl
-ret
-;}
-
-; Loads a Palette as the current Sprite Palette.
-; a: Palette index
-loadOBJPalette:: ;{
-    push hl
-
-    ;Calculate offset in pointertable from index
-    call getPaletteOffsetFromTable
-    ;At this point HL has the pointer to the palette
-
-    ld a, $80
-    ldh [rOCPS], a
-    ld b, $40
-    LoopOBJPAL: ;{ While b > 0
-        WAITBLANK
-
-        ldi a, [hl]
-        ldh [rOCPD], a
-        dec b
-        jr nz, LoopOBJPAL
-    ;}
-    pop hl
-ret
-;}
-
-;Calculates the offset to a palette from its index in the pointer table
-;a: palette index
-;hl: pointer to palette
-getPaletteOffsetFromTable:
-    ld e, a
-    ld d, $00
-    sla e
-    switchBank palettePointerTable
-    ld hl, palettePointerTable
-    add hl, de
-
-    ;Load pointer from pointer table
-    ld a, [hl+]
-    ld h, [hl]
-    ld l, a
-ret
-
+include "colorhack/load_palettes.asm"
 
 bank0_freespace: ; Freespace - 00:3F60 (filled with $00)
